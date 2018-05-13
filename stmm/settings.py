@@ -13,7 +13,14 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+import sys
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Include BOOTSTRAP3_FOLDER in path
+# BOOTSTRAP3_FOLDER = os.path.abspath(os.path.join(BASE_DIR, 'roberto\\static', 'bootstrap'))
+# if BOOTSTRAP3_FOLDER not in sys.path:
+#     sys.path.insert(0, BOOTSTRAP3_FOLDER)
 
 
 # Quick-start development settings - unsuitable for production
@@ -37,7 +44,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'roberto'
+    'roberto',
+    'bootstrap3',
+
 ]
 
 MIDDLEWARE = [
@@ -55,7 +64,9 @@ ROOT_URLCONF = 'stmm.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'roberto\\templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -119,3 +130,15 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'roberto\\static')
+
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, 'Abstack\\Admin\\default\\assets'),
+)
+
+STATICFILES_FINDERS = (
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    # 'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+)
+
