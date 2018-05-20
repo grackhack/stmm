@@ -4,14 +4,47 @@ from __future__ import unicode_literals
 from django.db import models
 
 class Football(models.Model):
+    html_link = models.CharField(default='', null=False, max_length=16)
     begin_time = models.CharField(default='', null=False, max_length=16)
     timer = models.CharField(default='', null=False, max_length=16)
     team_home = models.CharField(default='', null=False, max_length=32)
-    hcard = models.CharField(default='', null=False, max_length=8)
+    rhcard = models.CharField(default='', null=False, max_length=8)
     score = models.CharField(default='', null=False, max_length=32)
     team_away = models.CharField(default='', null=False, max_length=32)
-    acard = models.CharField(default='', null=False, max_length=8)
-    squad = models.CharField(default='', null=False, max_length=32)
+    racard = models.CharField(default='', null=False, max_length=8)
+    part_top = models.CharField(default='', null=False, max_length=32)
+    league = models.ForeignKey('League', default=None)
 
     class Meta:
-        db_table = 'Football'
+        db_table = 'soccer'
+
+
+class Country(models.Model):
+    caption = models.CharField(default='', null=False, max_length=32)
+
+    class Meta:
+        db_table = 'country'
+
+
+class League(models.Model):
+    html_link = models.CharField(default='', null=False, max_length=16)
+    caption = models.CharField(default='', null=False, max_length=64)
+    country = models.CharField(default='', null=False, max_length=64)
+
+    class Meta:
+        db_table = 'league'
+
+
+class EventGame(models.Model):
+    begin_time = models.CharField(default='', null=False, max_length=16)
+    timer = models.CharField(default='', null=False, max_length=16)
+    team_home = models.CharField(default='', null=False, max_length=32)
+    rhcard = models.CharField(default='', null=False, max_length=8)
+    score = models.CharField(default='', null=False, max_length=32)
+    team_away = models.CharField(default='', null=False, max_length=32)
+    racard = models.CharField(default='', null=False, max_length=8)
+    part_top = models.CharField(default='', null=False, max_length=32)
+    html_link = models.CharField(default='', null=False, max_length=16)
+
+    class Meta:
+        db_table = 'event_game'
