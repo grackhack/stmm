@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from time import sleep
 import logging
 
@@ -31,14 +32,31 @@ class Game(object):
 
     @staticmethod
     def get_diff_game(game, new_game):
+        event_type = ''
         new_score = myscoresettings.MSC_SCORE_REGEX.search(new_game.score)
         new_score = new_score.groups() if new_score else ('', '')
         game_score = myscoresettings.MSC_SCORE_REGEX.search(game.score)
         game_score = game_score.groups() if game_score else ('', '')
+
+        exist_new_score = new_score[0].isdigit() and new_score[1].isdigit()
+        exist_game_score = game_score[0].isdigit() and game_score[1].isdigit()
+
+        if (new_score[0] == new_score[1] == '0' or new_score[0] == new_score[1] == '') and new_game.rhcard == new_game.racard == '':
+            event_type = '0'
+
+        if exist_new_score and exist_game_score and (new_score[0] != game_score[0] or new_score[1] != game_score[1]):
+            event_type = '1'
+
+        if new_game.rhcard != game.rhcard or new_game.rhcard != game.rhcard:
+            event_type = '2'
+
         return any([new_game.rhcard != game.rhcard, new_game.rhcard != game.rhcard,
                     new_score[0] != game_score[0], new_score[1] != game_score[1]]
-                   )
+                   ), event_type
 
+    @staticmethod
+    def _get_type_event(game, new_game):
+        pass
 
 class League(object):
     def __init__(self, header=None, game=None):
@@ -88,6 +106,11 @@ class MyScore(object):
             return ''
 
     def renew_html(self, html):
+        """
+        Update html for parsing BSoup
+        :param html:
+        :return:
+        """
         self.html = html
         self.soup = BeautifulSoup(self.html, "html.parser")
 
@@ -132,23 +155,40 @@ class MyScore(object):
         return curren_league
 
     def _update_game(self, game):
+        """
+        Renew record in soccer table
+        :param game:
+        :return:
+        """
         update_sql = sql.UPDATE_ONE_GAME_BY_LINK.format(tbl=myscoresettings.MSC_SOCCER_TABLE,
                                                         link=game.html_link)
         params = (game.get_game_params())
         run_sql(update_sql, params=params)
 
     def _check_current_diff(self, exist_game, current_game):
-        diff = Game.get_diff_game(exist_game, current_game)
+        """
+        Check differrence for onr game
+        :param exist_game:
+        :param current_game:
+        :return: True if have difference
+        """
+        diff, event_type = Game.get_diff_game(exist_game, current_game)
         if diff:
-            self._insert_event(current_game)
+            print("{} - {} event: {}".format(current_game.team_home, current_game.team_away, event_type))
+            self._insert_event(current_game, event_type)
         self._update_game(current_game)
         return diff
 
-    def _insert_event(self, game):
+    def _insert_event(self, game, event_type):
+        """
+        Inser new event for game
+        :param game:
+        :return:
+        """
         insert_sql = sql.INSERT_ONE_EVENT.format(tbl=myscoresettings.MSC_EVENT_TABLE)
-        params = (game.get_game_params())
+        params = (*game.get_game_params(), event_type, datetime.now())
         run_sql(insert_sql, params)
-        print('New event')
+        print('New event {}'.format(params))
 
 
     def _get_current_game(self, game):
@@ -158,6 +198,11 @@ class MyScore(object):
         return result
 
     def _insert_league(self, header):
+        """
+        Insert league in table league
+        :param header:
+        :return:
+        """
         insert_sql = sql.INSERT_LEAGUE_IF_EXIST.format(tbl=myscoresettings.MSC_LEAGUE_TABLE,
                                                        link=header.html_link,
                                                        cap=header.caption,
@@ -165,6 +210,12 @@ class MyScore(object):
         run_sql(insert_sql)
 
     def _insert_game(self, header, game):
+        """
+        Insert new game in soccer table
+        :param header:
+        :param game:
+        :return:
+        """
         sql_leagie_id = sql.SELECT_LEAGUE_ID.format(tbl=myscoresettings.MSC_LEAGUE_TABLE, link=header.html_link)
         result = run_sql(sql_leagie_id)
         if result:
@@ -176,7 +227,7 @@ class MyScore(object):
 
     def process_league(self, league):
         """
-        Update db for laegue
+        Update events
         :param table_dict:
         :return: True if ok
         """
@@ -198,7 +249,7 @@ class MyScore(object):
 if __name__ == '__main__':
     with WebParser('https://www.myscore.ru/', False) as w:
         myscore = MyScore(w.get_source_html())
-        cnt = 30
+        cnt = 5*60
         while cnt > 0:
             try:
                 myscore.renew_html(w.get_source_html())
@@ -212,6 +263,7 @@ if __name__ == '__main__':
             except Exception as e:
                 myscore.log.exception("message")
             sleep(w.sleeptime)
+            print(cnt)
             cnt -= 1
 
 

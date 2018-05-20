@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+{% load staticfiles %}
+      <div class="col-lg-12">
+
+                                <div class="card-box">
+                                    <table class="table table-striped">
+                                        <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Начало</th>
+                                            <th>Время</th>
+                                            <th>Команда</th>
+                                            <th>Счет</th>
+                                            <th>Команда</th>
+                                            <th>Половина</th>
+                                            <th>Html</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                         {% for game in games%}
+                                        <tr>
+
+                                            <th scope="row">{{forloop.counter}}</th>
+                                            <td>{{game.begin_time}}</td>
+                                            <td>{{game.timer}}</td>
+                                            <td>
+                                                {% if game.rhcard %}
+                                                    {% for card in game.rhcard %}
+                                                        <img src="{% static "/images/card-red.png" %}" alt="Red_card">
+                                                    {% endfor %}
+                                                {% endif %}
+                                                {{game.team_home}}
+                                            </td>
+                                            <td>{{game.score}}</td>
+                                            <td>{{game.team_away}}
+                                                {% if game.racard %}
+                                                    {% for card in game.racard %}
+                                                        <img src="{% static "/images/card-red.png" %}" alt="Red_card">
+                                                    {% endfor %}
+                                                {% endif %}
+                                            </td>
+                                            <td>{{game.part_top}}</td>
+                                            <td><a href = "https://www.myscore.ru/match/{{game.html_link|slice:"4:15"}}/#odds-comparison;" target="_blank">Подробнее</a></td>
+
+                                        </tr>
+                                         {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+{% endblock %}

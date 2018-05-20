@@ -17,5 +17,5 @@ UPDATE_ONE_GAME_BY_LINK = """UPDATE {tbl} set begin_time=?, timer=?, team_home=?
                     team_away=?, racard=?, part_top=?, html_link=? where html_link='{link}'"""
 
 INSERT_ONE_EVENT = """INSERT into {tbl} (begin_time, timer,team_home,rhcard,score,
-                    team_away, racard, part_top, html_link) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+                    team_away, racard, part_top, html_link, event_type, time_stamp ) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,?)"""
