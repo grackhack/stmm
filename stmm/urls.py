@@ -21,5 +21,7 @@ from django.views.generic import TemplateView
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^index', views.index, name='index'),
-    url(r'^tables-basic', TemplateView.as_view(template_name="tables-basic.html"), name='table'),
+    # url(r'^tables-basic', TemplateView.as_view(template_name="tables-basic.html"), name='table'),
+    url(r'^live_table', views.live_table, name='live_table'),
+    url(r'^event_table', views.event_table, name='event_table'),
 ]

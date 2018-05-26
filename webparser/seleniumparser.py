@@ -24,8 +24,9 @@ class WebParser(object):
         try:
             self.driver = webdriver.Firefox(firefox_options=options, capabilities=capabilities)
             self.driver.get(self.url)
-            WebDriverWait(self.driver, websettings.TIMEOUT).until(EC.presence_of_element_located(
-                (By.CLASS_NAME, websettings.MSC_MAIN_TABLE)))
+            if self.class_name:
+                WebDriverWait(self.driver, websettings.TIMEOUT).until(EC.presence_of_element_located(
+                    (By.CLASS_NAME, self.class_name)))
         except TimeoutException:
             self.error = 'Timeout Selenium'
         except Exception as e:
@@ -37,12 +38,13 @@ class WebParser(object):
     def __exit__(self, exp_type, exp_value, traceback):
         self.driver.quit()
 
-    def __init__(self, url, headless=True):
+    def __init__(self, url, headless=True, class_name=None):
         self.url = url
         self.element = ''
         self.error = 'Ok'
         self.headless = headless
         self.sleeptime = websettings.REFRESH_TIME
+        self.class_name = class_name
 
     def get_source_html(self):
         """

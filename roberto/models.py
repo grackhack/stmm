@@ -2,6 +2,8 @@
 from __future__ import unicode_literals
 
 from django.db import models
+from django.utils import timezone
+
 
 class Football(models.Model):
     html_link = models.CharField(default='', null=False, max_length=16)
@@ -45,6 +47,27 @@ class EventGame(models.Model):
     racard = models.CharField(default='', null=False, max_length=8)
     part_top = models.CharField(default='', null=False, max_length=32)
     html_link = models.CharField(default='', null=False, max_length=16)
+    time_stamp = models.DateTimeField(auto_now_add=True)
+    event_type = models.CharField(default='', null=False, max_length=32)
+    pre_p1 = models.CharField(default='', null=False, max_length=8)
+    pre_x = models.CharField(default='', null=False, max_length=8)
+    pre_p2 = models.CharField(default='', null=False, max_length=8)
+    live_p1 = models.CharField(default='', null=False, max_length=8)
+    live_x = models.CharField(default='', null=False, max_length=8)
+    live_p2 = models.CharField(default='', null=False, max_length=8)
+    dog = models.CharField(default='', null=False, max_length=2)
+
 
     class Meta:
         db_table = 'event_game'
+
+
+class EventParams(models.Model):
+    event_id = models.ForeignKey('EventGame')
+    time_stamp = models.DateTimeField(auto_now_add=True)
+    event_type = models.CharField(default='', null=False, max_length=32)
+    html_link = models.CharField(default='', null=False, max_length=16)
+
+    class Meta:
+        db_table = 'event_params'
+
