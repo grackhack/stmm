@@ -14,8 +14,11 @@
                                             <th>Тип события</th>
                                             <th>Команда</th>
                                             <th>Счет</th>
-                                            <th>Команда</th>1111ffdd1111f
+                                            <th>Команда</th>
                                             <th>Половина</th>
+                                            <th>P1</th>
+                                            <th>PX</th>
+                                            <th>P2</th>
                                             <th>Html</th>
                                         </tr>
                                         </thead>
@@ -62,7 +65,10 @@
                                                 {% endif %}
                                             </td>
                                             <td>{{game.part_top}}</td>
-                                            <td><a href = "https://www.myscore.ru/match/{{game.html_link|slice:"4:15"}}/#match-summary" target="_blank">Подробнее</a></td>
+                                            <td>{{game.pre_p1}}</td>
+                                            <td>{{game.pre_x}}</td>
+                                            <td>{{game.pre_p2}}</td>
+                                            <td><a href = "https://www.myscore.ru/match/{{game.html_link}}/#match-summary" target="_blank">Подробнее</a></td>
 
                                         </tr>
                                          {% endfor %}
