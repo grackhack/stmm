@@ -30,7 +30,7 @@
                                             <td>{{game.begin_time}}</td>
                                             <td>
                                                 {% if game.timer|slice:"0:2" < '30'%}
-                                                <div class="badge badge-primary">  {{game.timer}} </div>
+                                                <div class="badge badge-primary">{{game.timer}}</div>
                                                 {% else %}
                                                 {{game.timer}}
                                                 {% endif %}
@@ -54,10 +54,19 @@
                                                         <img src="{% static "/images/card-red.png" %}" alt="Red_card">
                                                     {% endfor %}
                                                 {% endif %}
-                                                {{game.team_home}}
+                                                {% if game.dog == '1' %}
+                                                    <div class="badge-danger">{{game.team_home}}</div>
+                                                {% else %}
+                                                    {{game.team_home}}
+                                                {% endif %}
                                             </td>
                                             <td>{{game.score}}</td>
-                                            <td>{{game.team_away}}
+                                            <td>
+                                                {% if game.dog == '2' %}
+                                                    <div class="badge-danger">{{game.team_away}}</div>
+                                                {% else %}
+                                                    {{game.team_away}}
+                                                {% endif %}
                                                 {% if game.racard %}
                                                     {% for card in game.racard %}
                                                         <img src="{% static "/images/card-red.png" %}" alt="Red_card">

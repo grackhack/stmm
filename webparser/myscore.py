@@ -29,6 +29,7 @@ class Odds(object):
         self.live_x = live_odds[1] if live_odds else ''
         self.live_p2 = live_odds[2] if live_odds else ''
         self.flash_facts = flash_facts if flash_facts else ''
+        self.dog = ''
 
     def get_pre_odds(self):
         return self.pre_p1, self.pre_x, self.pre_p2
@@ -37,7 +38,17 @@ class Odds(object):
         return self.live_p1, self.live_x, self.live_p2
 
     def get_odds(self):
-        return self.pre_p1, self.pre_x, self.pre_p2, self.live_p1, self.live_x, self.live_p2
+        return self.pre_p1, self.pre_x, self.pre_p2, self.live_p1, self.live_x, self.live_p2, self.dog
+
+    def update_dog(self):
+        try:
+            if float(self.pre_p1) < 2 and float(self.pre_p2) > 2:
+                self.dog = '2'
+            if float(self.pre_p2) < 2 and float(self.pre_p1) > 2:
+                self.dog = '1'
+        except Exception:
+            print('BAD ODDS: {}'.format(self.pre_p1, self.pre_p2))
+
 
 
 class Game(object):
@@ -69,7 +80,8 @@ class Game(object):
 
         if (new_score[0] == new_score[1] == '0' or new_score[0] == new_score[1] == '') and new_game.rhcard == new_game.racard == ''\
                 and re.search(r'[\d]+', new_game.timer):
-            event_type = EventType.new_game
+            if int(new_game.timer) < 10:
+                event_type = EventType.new_game
 
         if exist_new_score and exist_game_score and (new_score[0] != game_score[0] or new_score[1] != game_score[1]):
             event_type = EventType.goal
@@ -176,16 +188,16 @@ class MyScore(object):
                 html_link = row.get('id')[4:]
                 cols = row.find_all('td')
                 if cols:
-                    time = cols[1].text
+                    time = cols[1].text.strip()
                     timer = cols[2].text.strip()
-                    team_home = cols[3].text
+                    team_home = cols[3].text.strip()
                     rhcard = cols[3].findAll('span', {"class": "rhcard"})
                     rhcard = rhcard[0].get('class')[1][-1:] if rhcard else ''
-                    score = cols[4].text
-                    team_away = cols[5].text
+                    score = cols[4].text.strip()
+                    team_away = cols[5].text.strip()
                     racard = cols[5].findAll('span', {"class": "racard"})
                     racard = racard[0].get('class')[1][-1:] if racard else ''
-                    part_top = cols[6].text
+                    part_top = cols[6].text.strip()
                     curren_league.add_game(Game((time, timer, team_home, rhcard, score, team_away, racard, part_top, html_link)))
 
                 cnt += 1
@@ -206,6 +218,7 @@ class MyScore(object):
                         odds.pre_p1 = cols[1].text.strip().split()[1] if cols[1] else ''
                         odds.pre_x = cols[2].text.strip().split()[1] if cols[1] else ''
                         odds.pre_p2 = cols[3].text.strip().split()[1] if cols[1] else ''
+                        odds.update_dog()
             if table_id == myscoresettings.MSC_LIVE_ODDS_TABLE:
                 rows = tmp_table.find_all('tr')
                 for row in rows:
@@ -217,7 +230,7 @@ class MyScore(object):
             if table_id == myscoresettings.MSC_FLASH_FACTS_TABLE:
                 rows = tmp_table.find_all('tr')
                 for row in rows:
-                    odds.flash_facts += row.text
+                    odds.flash_facts += '\n' + row.text.strip()
         return odds
 
     def _update_game(self, game):
@@ -291,25 +304,40 @@ class MyScore(object):
             self.log.info(params)
             run_sql(insert_sql, params=params)
 
-
     def _get_current_game_odds(self, current_game):
         current_link = '{}/{}/{}/{}'.format(myscoresettings.MSC_BASE_LINK, myscoresettings.MSC_MATCH_LINK,
                                          current_game.html_link, myscoresettings.MSC_MATCH_SUMMARY_LINK)
+        current_odds = Odds()
         with WebParser(current_link, False, myscoresettings.MSC_MATCH_SUMMARY_CLASS) as cu:
             msc_local = MyScore(cu.get_source_html())
             try:
                 odds_table = msc_local.get_table(myscoresettings.MSC_ODDS)
                 if odds_table:
                     current_odds = self._parse_pre_odds(odds_table)
-                    return current_odds
             except Exception:
                 myscore.log.exception("message")
+        return current_odds
 
     @staticmethod
     def _update_odds(current_game, odds):
         update_sql = sql.UPDATE_GAME_ODDS.format(tbl=myscoresettings.MSC_EVENT_TABLE, link=current_game.html_link)
         params = (odds.get_odds())
         run_sql(update_sql, params=params)
+
+    @staticmethod
+    def _get_event_odds(html_link):
+        odds = Odds()
+        select_sql = sql.SELECT_ODDS_BY_LINK.format(tbl=myscoresettings.MSC_EVENT_TABLE, link=html_link)
+        result = run_sql(select_sql)
+        if result:
+            odds.live_p1 = result[0]
+            odds.live_p2 = result[1]
+            odds.live_x = result[2]
+            odds.pre_p1 = result[3]
+            odds.pre_p2 = result[4]
+            odds.pre_x = result[5]
+            odds.dog = result[6]
+        return odds
 
     def process_league(self, league):
         """
@@ -324,11 +352,13 @@ class MyScore(object):
                 self.log.info("{} \t {} - {} \t {}".format(league.game[game].timer, league.game[game].team_home,
                                                            league.game[game].team_away, league.game[game].score))
 
-            exist_game = self._get_current_game(league.game[game])
+            exist_game = Game(self._get_current_game(league.game[game]))
+            event_odds = self._get_event_odds(exist_game.html_link)
+            exist_game.odds = event_odds
             if exist_game:
-                current_game, event_type = self._check_current_diff(Game(exist_game), league.game[game])
+                current_game, event_type = self._check_current_diff(exist_game, league.game[game])
                 if event_type == EventType.new_game:
-                    if not Game(exist_game).odds.pre_p1:
+                    if not exist_game.odds.pre_p1 or not exist_game.odds.live_p1:
                         current_odds = self._get_current_game_odds(current_game)
                         self.log.info("{}\t\t{}".format((current_odds.get_pre_odds()), (current_odds.get_live_odds())))
                         self._update_odds(current_game, current_odds)
