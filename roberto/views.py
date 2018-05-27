@@ -46,12 +46,12 @@ def live_table(request):
 
 
 def event_table(request):
-    games = EventGame.objects.filter(_gen_query()).order_by( '-time_stamp','-begin_time', 'html_link')
-    count_event = games.count()
+    event = EventGame.objects.filter(_gen_query()).order_by( '-time_stamp','-begin_time', 'html_link')
+    count_event = event.count()
 
     context = {
         'count_event': count_event,
-        'games': games
+        'games': event
     }
 
     return render(request, 'event_table.html', context)
