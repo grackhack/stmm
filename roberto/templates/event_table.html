@@ -28,13 +28,8 @@
 
                                             <th scope="row">{{forloop.counter}}</th>
                                             <td>{{game.begin_time}}</td>
-                                            <td>
-                                                {% if game.timer|slice:"0:2" < '30'%}
-                                                <div class="badge badge-primary">{{game.timer}}</div>
-                                                {% else %}
-                                                {{game.timer}}
-                                                {% endif %}
-                                            </td>
+                                            <td>{% if game.timer < '30' %}<div class="badge badge-primary">{{game.timer}}</div>
+                                                {% else %}{{game.timer}}{% endif %}</td>
                                             <td>
                                                 {{game.time_stamp|time:"H:i:s"}}
                                             </td>

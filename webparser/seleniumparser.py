@@ -3,10 +3,11 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from webparser import websettings
+from webparser import websettings, myscoresettings
 
 
 class WebParser(object):
@@ -27,6 +28,9 @@ class WebParser(object):
             if self.class_name:
                 WebDriverWait(self.driver, websettings.TIMEOUT).until(EC.presence_of_element_located(
                     (By.CLASS_NAME, self.class_name)))
+                # if self.class_name == myscoresettings.MSC_MATCH_SUMMARY_CLASS:
+                #     element = self.driver.find_element_by_class_name(websettings.LIVE_ELEMENT)
+                #     element.click()
         except TimeoutException:
             self.error = 'Timeout Selenium'
         except Exception as e:
