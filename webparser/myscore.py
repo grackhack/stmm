@@ -4,7 +4,13 @@ from time import sleep
 import logging
 
 import sys
+
+import telegram
 from bs4 import BeautifulSoup
+
+from tbot.cfg import TOKEN
+from tbot.cfg import BOT_FATHER
+from tbot.cfg import DOCENT
 from webparser import myscoresettings
 from webparser.dbconnection import run_sql
 from webparser.seleniumparser import WebParser
@@ -63,6 +69,10 @@ class Game(object):
         self.part_top = game[7] if game else ''
         self.html_link = game[8] if game else ''
         self.odds = Odds()
+
+    def get_score(self):
+        cur_score = myscoresettings.MSC_SCORE_REGEX.search(self.score)
+        return cur_score.groups() if cur_score else ('', '')
 
     def get_game_params(self):
         return self.time, self.timer, self.team_home, self.rhcard, self.score, self.team_away, self.racard, self.part_top, self.html_link
@@ -346,6 +356,44 @@ class MyScore(object):
             odds.dog = result[6]
         return odds
 
+    def send_bot_message(self, current_game, exist_game):
+        send_message = False
+        predict_message = ''
+        last_score = exist_game.get_score()
+        curr_score = current_game.get_score()
+        if exist_game.odds.dog == '1':
+            if int(curr_score[0]) > int(last_score[0]) and int(curr_score[1]) == 0:
+                send_message = True
+                predict_message = 'Ставка П2'
+
+            if int(curr_score[0]) == int(last_score[0]) == 1 and int(curr_score[1]) == 1:
+                send_message = True
+                predict_message = 'СТАВКА ЗАШЛА!'
+        if exist_game.odds.dog == '2':
+            if int(curr_score[1]) > int(last_score[1]) and int(curr_score[0]) == 0:
+                send_message = True
+                predict_message = 'Ставка П1'
+
+            if int(curr_score[1]) == int(last_score[1]) == 1 and int(curr_score[0]) == 1:
+                send_message = True
+                predict_message = 'СТАВКА ЗАШЛА!'
+
+        info = """<a href="http://t.myscore.ru/#!/match/{}/match-summary">Подробности</a>""".format(exist_game.html_link)
+        message = "{} Time:{} {} {} {} dog:{} Odds:{} {} {}\n{}".format(predict_message, current_game.timer,
+                                                                    current_game.team_home, current_game.score,
+                                                                    current_game.team_away, exist_game.odds.dog,
+                                                                    exist_game.odds.pre_p1, exist_game.odds.pre_x,
+                                                                    exist_game.odds.pre_p2, info)
+
+
+
+        self.log.info(message)
+        if send_message:
+            bot = telegram.Bot(token=TOKEN)
+            bot.send_message(chat_id=BOT_FATHER, text=message, parse_mode='HTML', disable_web_page_preview=True)
+            bot.send_message(chat_id=DOCENT, text=message, parse_mode='HTML', disable_web_page_preview=True)
+
+
     def process_league(self, league):
         """
         Update events
@@ -372,6 +420,11 @@ class MyScore(object):
                         self._update_odds(current_game, current_odds)
                 if event_type == EventType.goal:
                     self._update_odds(current_game, exist_game.odds)
+                    if event_odds.dog:
+                        current_score = current_game.get_score()
+                        if current_score[0] and current_score[1]:
+                            if 0 < int(current_score[0]) + int(current_score[1]) < 3:
+                                self.send_bot_message(current_game, exist_game)
 
             else:
                 self._insert_game(league.header, league.game[game])
