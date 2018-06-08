@@ -140,8 +140,15 @@ CN = False
 
 
 def main():
-
-    updater = Updater(TOKEN)
+    REQUEST_KWARGS = {
+        'proxy_url': 'https://192.162.241.92:1080',
+        # Optional, if you need authentication:
+        # 'urllib3_proxy_kwargs': {
+        #     'username': 'PROXY_USER',
+        #     'password': 'PROXY_PASS',
+        # }
+    }
+    updater = Updater(TOKEN, request_kwargs=REQUEST_KWARGS)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -186,13 +193,41 @@ def main():
     updater.idle()
 
 def test_msg():
-    bot = telegram.Bot(token=TOKEN)
-    # bot.send_message(chat_id=cfg.BOT_FATHER, text="""<a href="http://t.myscore.ru/#!/match/v73jbxUI/match-summary">Подробности</a>""", parse_mode='HTML')
-    # bot.send_message(chat_id=cfg.BOT_FATHER, text="http://t.myscore.ru/#!/match/v73jbxUI/match-summary")
-    bot.send_message(chat_id=cfg.BOT_FATHER,
-                     text="""\n<a href="http://t.myscore.ru/#!/match/v73jbxUI/match-summary">Подробности</a>""",
-                     parse_mode='HTML',
-                     disable_web_page_preview=True)
+    for i in range(5):
+        proxy_list = [
+            'https://195.201.43.199:3128',
+            'https://195.208.172.70:8080',
+            'https://145.249.106.107:8118',
+            'https://51.255.168.125:9999',
+            'https://144.76.62.29:3128',
+        ]
+        try:
+            REQUEST_KWARGS = {
+                # 'proxy_url': 'https://192.162.241.92:1080',
+                'proxy_url': proxy_list[i],
+                # Optional, if you need authentication:
+                # 'urllib3_proxy_kwargs': {
+                #     'username': 'PROXY_USER',
+                #     'password': 'PROXY_PASS',
+                # }
+            }
+
+            updater = Updater(TOKEN, request_kwargs=REQUEST_KWARGS)
+            country = 'ПОЛЬША'
+            chemp = 'Первый дивизион'
+            info = """<a href="http://t.myscore.ru/#!/match/{}/match-summary">Подробности</a>""".format('v73jbxUI')
+            message = """<b>{}</b>\n {} {} \n{} - {} dog:{}\n <i> Счет: {} Время:{}</i>\n <i> Кэфы:{} {} {}</i>\n{} """.format(
+                'СТАВКА П1', country, chemp, 'Друтекс-Бытовия', 'Хробры Глогув', '2', '0-1', '30',
+                '1.21', '3.54', '6.52', info)
+
+            updater.bot.send_message(chat_id=cfg.BOT_FATHER,
+                             text=message,
+                             parse_mode='HTML',
+                             disable_web_page_preview=True)
+        except Exception as e:
+            print(e)
+        else:
+            break
 
 if __name__ == '__main__':
     # main()
