@@ -17,3 +17,5 @@ MSC_MATCH_SUMMARY_CLASS = 'detail-header-wrapper'
 MSC_ODDS = 'odds'
 
 MSC_TIMER_NEW_EVENT = 10
+
+WORK_TIME_HOUR = 18

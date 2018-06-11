@@ -7,8 +7,9 @@ import sys
 
 import telegram
 from bs4 import BeautifulSoup
+from telegram.ext import Updater
 
-from tbot.cfg import TOKEN
+from tbot.cfg import TOKEN, ALEX, VOVEI
 from tbot.cfg import BOT_FATHER
 from tbot.cfg import DOCENT
 from webparser import myscoresettings
@@ -16,6 +17,7 @@ from webparser.dbconnection import run_sql
 from webparser.seleniumparser import WebParser
 from webparser import sql
 
+DEBUG = False
 logging.basicConfig(format=u'%(filename)s[LINE:%(lineno)d]# %(levelname)-8s [%(asctime)s]  %(message)s',
                     level=logging.DEBUG, filename=u'myscore.log')
 
@@ -48,9 +50,9 @@ class Odds(object):
 
     def update_dog(self):
         try:
-            if float(self.pre_p1) < 2 and float(self.pre_p2) > 2:
+            if float(self.pre_p1) < 1.91 and float(self.pre_p2) > 2:
                 self.dog = '2'
-            if float(self.pre_p2) < 2 and float(self.pre_p1) > 2:
+            if float(self.pre_p2) < 1.91 and float(self.pre_p1) > 2:
                 self.dog = '1'
         except Exception:
             print('BAD ODDS: {}'.format(self.pre_p1, self.pre_p2))
@@ -325,7 +327,7 @@ class MyScore(object):
         current_link = '{}/{}/{}/{}'.format(myscoresettings.MSC_BASE_LINK, myscoresettings.MSC_MATCH_LINK,
                                          current_game.html_link, myscoresettings.MSC_MATCH_SUMMARY_LINK)
         current_odds = Odds()
-        with WebParser(current_link, False, myscoresettings.MSC_MATCH_SUMMARY_CLASS) as cu:
+        with WebParser(current_link, True, myscoresettings.MSC_MATCH_SUMMARY_CLASS) as cu:
             msc_local = MyScore(cu.get_source_html())
             try:
                 odds_table = msc_local.get_table(myscoresettings.MSC_ODDS)
@@ -356,42 +358,89 @@ class MyScore(object):
             odds.dog = result[6]
         return odds
 
-    def send_bot_message(self, current_game, exist_game):
+    def send_bot_message(self, current_game, exist_game, league_header):
         send_message = False
         predict_message = ''
+        country = league_header.country
+        chemp = league_header.caption
         last_score = exist_game.get_score()
         curr_score = current_game.get_score()
         if exist_game.odds.dog == '1':
-            if int(curr_score[0]) > int(last_score[0]) and int(curr_score[1]) == 0:
+            if int(curr_score[0]) > int(last_score[0]) and int(curr_score[1]) == 0 and int(last_score[0]) == 0:
                 send_message = True
                 predict_message = 'Ставка П2'
+
+            if int(curr_score[0]) > int(last_score[0]) and int(curr_score[1]) == 0 and int(last_score[0]) == 1:
+                send_message = True
+                predict_message = 'Отрыв хозяев увеличился('
+
+            if int(curr_score[0]) == int(last_score[0]) and int(curr_score[1]) == 1 and int(last_score[0]) == 2:
+                send_message = True
+                predict_message = 'Гости сократили разрыв'
 
             if int(curr_score[0]) == int(last_score[0]) == 1 and int(curr_score[1]) == 1:
                 send_message = True
                 predict_message = 'СТАВКА ЗАШЛА!'
+
+            if int(curr_score[0]) == int(last_score[0]) == 2 and int(curr_score[1]) == 2:
+                send_message = True
+                predict_message = 'ОТЫГРАЛИСЬ!'
+
+
         if exist_game.odds.dog == '2':
-            if int(curr_score[1]) > int(last_score[1]) and int(curr_score[0]) == 0:
+            if int(curr_score[1]) > int(last_score[1]) and int(curr_score[0]) == 0 and int(last_score[1]) == 0:
                 send_message = True
                 predict_message = 'Ставка П1'
+
+            if int(curr_score[1]) > int(last_score[1]) and int(curr_score[0]) == 0 and int(last_score[1]) == 1:
+                send_message = True
+                predict_message = 'Отрыв гостей увеличился('
+
+            if int(curr_score[1]) == int(last_score[1]) and int(curr_score[0]) == 1 and int(last_score[1]) == 2:
+                send_message = True
+                predict_message = 'Хозяева сократили разрыв'
 
             if int(curr_score[1]) == int(last_score[1]) == 1 and int(curr_score[0]) == 1:
                 send_message = True
                 predict_message = 'СТАВКА ЗАШЛА!'
 
+            if int(curr_score[1]) == int(last_score[1]) == 2 and int(curr_score[0]) == 2:
+                send_message = True
+                predict_message = 'ОТЫГРАЛИСЬ!'
+
+
         info = """<a href="http://t.myscore.ru/#!/match/{}/match-summary">Подробности</a>""".format(exist_game.html_link)
-        message = "{} Time:{} {} {} {} dog:{} Odds:{} {} {}\n{}".format(predict_message, current_game.timer,
-                                                                    current_game.team_home, current_game.score,
-                                                                    current_game.team_away, exist_game.odds.dog,
-                                                                    exist_game.odds.pre_p1, exist_game.odds.pre_x,
-                                                                    exist_game.odds.pre_p2, info)
-
-
+        message = "<b>{}</b>\n {} {} \n{} - {} dog:{}\n <i> Счет: {} Время:{}</i>\n <i> Кэфы:{} {} {}</i>\n{} ".format(
+            predict_message, country, chemp, current_game.team_home, current_game.team_away,
+            exist_game.odds.dog, current_game.score, current_game.timer,
+            exist_game.odds.pre_p1, exist_game.odds.pre_x, exist_game.odds.pre_p2, info)
 
         self.log.info(message)
         if send_message:
-            bot = telegram.Bot(token=TOKEN)
-            bot.send_message(chat_id=BOT_FATHER, text=message, parse_mode='HTML', disable_web_page_preview=True)
-            bot.send_message(chat_id=DOCENT, text=message, parse_mode='HTML', disable_web_page_preview=True)
+            for i in range(7):
+                try:
+                    proxy_list = [
+                        'https://195.201.43.199:3128',
+                        'https://195.208.172.70:8080',
+                        'https://145.249.106.107:8118',
+                        'https://51.255.168.125:9999',
+                        'https://144.76.62.29:3128',
+                        'https://94.242.58.108:10010',
+                        'https://178.238.228.187:9090',
+                    ]
+                    REQUEST_KWARGS = {
+                         'proxy_url': proxy_list[i],
+                    }
+                    updater = Updater(TOKEN, request_kwargs=REQUEST_KWARGS)
+                    updater.bot.send_message(chat_id=BOT_FATHER, text=message, parse_mode='HTML', disable_web_page_preview=True)
+                    updater.bot.send_message(chat_id=DOCENT, text=message, parse_mode='HTML', disable_web_page_preview=True)
+                    updater.bot.send_message(chat_id=ALEX, text=message, parse_mode='HTML', disable_web_page_preview=True)
+                    updater.bot.send_message(chat_id=VOVEI, text=message, parse_mode='HTML',
+                                             disable_web_page_preview=True)
+                except Exception:
+                    self.log.exception('message')
+                else:
+                    break
 
 
     def process_league(self, league):
@@ -418,13 +467,13 @@ class MyScore(object):
                         current_odds = self._get_current_game_odds(current_game)
                         self.log.info("{}\t\t{}".format((current_odds.get_pre_odds()), (current_odds.get_live_odds())))
                         self._update_odds(current_game, current_odds)
-                if event_type == EventType.goal:
+                if event_type == EventType.goal or DEBUG:
                     self._update_odds(current_game, exist_game.odds)
-                    if event_odds.dog:
+                    if event_odds.dog or DEBUG:
                         current_score = current_game.get_score()
-                        if current_score[0] and current_score[1]:
-                            if 0 < int(current_score[0]) + int(current_score[1]) < 3:
-                                self.send_bot_message(current_game, exist_game)
+                        if current_score[0] and current_score[1] or DEBUG:
+                            if 0 < int(current_score[0]) + int(current_score[1]) <= 3 or DEBUG:
+                                self.send_bot_message(current_game, exist_game, league.header)
 
             else:
                 self._insert_game(league.header, league.game[game])
@@ -432,9 +481,9 @@ class MyScore(object):
 
 
 if __name__ == '__main__':
-    with WebParser('https://www.myscore.ru/', False, myscoresettings.MSC_MAIN_TABLE) as w:
+    with WebParser('https://www.myscore.ru/', True, myscoresettings.MSC_MAIN_TABLE) as w:
         myscore = MyScore(w.get_source_html())
-        cnt = 5*60
+        cnt = myscoresettings.WORK_TIME_HOUR * 60
         while cnt > 0:
             try:
                 myscore.renew_html(w.get_source_html())
