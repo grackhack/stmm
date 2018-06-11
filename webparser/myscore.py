@@ -9,7 +9,7 @@ import telegram
 from bs4 import BeautifulSoup
 from telegram.ext import Updater
 
-from tbot.cfg import TOKEN, ALEX
+from tbot.cfg import TOKEN, ALEX, VOVEI
 from tbot.cfg import BOT_FATHER
 from tbot.cfg import DOCENT
 from webparser import myscoresettings
@@ -50,9 +50,9 @@ class Odds(object):
 
     def update_dog(self):
         try:
-            if float(self.pre_p1) < 2 and float(self.pre_p2) > 2:
+            if float(self.pre_p1) < 1.91 and float(self.pre_p2) > 2:
                 self.dog = '2'
-            if float(self.pre_p2) < 2 and float(self.pre_p1) > 2:
+            if float(self.pre_p2) < 1.91 and float(self.pre_p1) > 2:
                 self.dog = '1'
         except Exception:
             print('BAD ODDS: {}'.format(self.pre_p1, self.pre_p2))
@@ -381,6 +381,12 @@ class MyScore(object):
             if int(curr_score[0]) == int(last_score[0]) == 1 and int(curr_score[1]) == 1:
                 send_message = True
                 predict_message = 'СТАВКА ЗАШЛА!'
+
+            if int(curr_score[0]) == int(last_score[0]) == 2 and int(curr_score[1]) == 2:
+                send_message = True
+                predict_message = 'ОТЫГРАЛИСЬ!'
+
+
         if exist_game.odds.dog == '2':
             if int(curr_score[1]) > int(last_score[1]) and int(curr_score[0]) == 0 and int(last_score[1]) == 0:
                 send_message = True
@@ -398,6 +404,10 @@ class MyScore(object):
                 send_message = True
                 predict_message = 'СТАВКА ЗАШЛА!'
 
+            if int(curr_score[1]) == int(last_score[1]) == 2 and int(curr_score[0]) == 2:
+                send_message = True
+                predict_message = 'ОТЫГРАЛИСЬ!'
+
 
         info = """<a href="http://t.myscore.ru/#!/match/{}/match-summary">Подробности</a>""".format(exist_game.html_link)
         message = "<b>{}</b>\n {} {} \n{} - {} dog:{}\n <i> Счет: {} Время:{}</i>\n <i> Кэфы:{} {} {}</i>\n{} ".format(
@@ -407,7 +417,7 @@ class MyScore(object):
 
         self.log.info(message)
         if send_message:
-            for i in range(5):
+            for i in range(7):
                 try:
                     proxy_list = [
                         'https://195.201.43.199:3128',
@@ -415,6 +425,8 @@ class MyScore(object):
                         'https://145.249.106.107:8118',
                         'https://51.255.168.125:9999',
                         'https://144.76.62.29:3128',
+                        'https://94.242.58.108:10010',
+                        'https://178.238.228.187:9090',
                     ]
                     REQUEST_KWARGS = {
                          'proxy_url': proxy_list[i],
@@ -423,6 +435,8 @@ class MyScore(object):
                     updater.bot.send_message(chat_id=BOT_FATHER, text=message, parse_mode='HTML', disable_web_page_preview=True)
                     updater.bot.send_message(chat_id=DOCENT, text=message, parse_mode='HTML', disable_web_page_preview=True)
                     updater.bot.send_message(chat_id=ALEX, text=message, parse_mode='HTML', disable_web_page_preview=True)
+                    updater.bot.send_message(chat_id=VOVEI, text=message, parse_mode='HTML',
+                                             disable_web_page_preview=True)
                 except Exception:
                     self.log.exception('message')
                 else:
