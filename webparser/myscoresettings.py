@@ -9,13 +9,16 @@ MSC_SCORE_REGEX = re.compile(r'([\d]).?-.?([\d])')
 MSC_TIMER_REGEX = re.compile(r'[\d]+')
 MSC_MATCH_LINK = 'match'
 MSC_MATCH_SUMMARY_LINK = '#match-summary'
+MSC_MATCH_TABLE = '#standings;table'
 
 MSC_LIVE_ODDS_TABLE = 'default-live-odds'
 MSC_PRE_ODDS_TABLE = 'default-odds'
 MSC_FLASH_FACTS_TABLE = 'flash-facts'
 MSC_MATCH_SUMMARY_CLASS = 'detail-header-wrapper'
 MSC_ODDS = 'odds'
+MSC_STAT_TABLE = 'stats-table'
+MSC_STAT_TYPE_1 = 'table-type-1'
 
 MSC_TIMER_NEW_EVENT = 10
 
-WORK_TIME_HOUR = 18
+WORK_TIME_HOUR = 96

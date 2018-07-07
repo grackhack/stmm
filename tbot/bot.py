@@ -3,6 +3,7 @@ import telegram
 import logging
 import datetime
 import filters
+import json
 
 # Keyboards for anything menu
 from tbot import cfg
@@ -138,10 +139,18 @@ func_menu = {'Помощь': start, 'Позже': later}
 
 CN = False
 
-
+proxy_list = [
+    'https://195.201.43.199:3128',
+    'https://195.208.172.70:8080',
+    'https://145.249.106.107:8118',
+    'https://51.255.168.125:9999',
+    'https://144.76.62.29:3128',
+    'https://94.242.58.108:10010',
+    'https://178.238.228.187:9090',
+]
 def main():
     REQUEST_KWARGS = {
-        'proxy_url': 'https://192.162.241.92:1080',
+        'proxy_url': 'https://145.249.106.107:8118',
         # Optional, if you need authentication:
         # 'urllib3_proxy_kwargs': {
         #     'username': 'PROXY_USER',
@@ -170,7 +179,7 @@ def main():
     # ОБработка Статистики
     dp.add_handler(MessageHandler(filters.stat_filter, stat))
     # dp.add_handler(MessageHandler(filters.res_filter, resgame))
-    # dp.add_handler(MessageHandler(filters.home_filter, home))
+    dp.add_handler(MessageHandler(filters.home_filter, home))
 
     # log all errors
     dp.add_error_handler(error)
@@ -193,13 +202,20 @@ def main():
     updater.idle()
 
 def test_msg():
-    for i in range(5):
+    for i in range(11):
         proxy_list = [
             'https://195.201.43.199:3128',
-            'https://195.208.172.70:8080',
-            'https://145.249.106.107:8118',
-            'https://51.255.168.125:9999',
-            'https://144.76.62.29:3128',
+            'https://66.70.255.195:3128',
+            'https://198.50.142.59:8080',
+            'https://158.69.206.181:8888',
+            'https://144.76.62.29:3128', #jr
+            'https://94.242.58.108:10010',
+            'https://66.70.147.196:3128',
+            'https://66.70.147.197:3128',
+            'https://54.39.46.86:3128',
+            'https://52.91.209.114:8888',
+            'https://52.91.209.147:8888',
+
         ]
         try:
             REQUEST_KWARGS = {
@@ -211,14 +227,24 @@ def test_msg():
                 #     'password': 'PROXY_PASS',
                 # }
             }
-
+            print(REQUEST_KWARGS['proxy_url'])
             updater = Updater(TOKEN, request_kwargs=REQUEST_KWARGS)
-            country = 'ПОЛЬША'
+            home = '{"team": "\u0411\u0438\u043d\u044c\u0437\u044b\u043e\u043d\u0433", "place": "6/14", "cnt": "14/26", "w": "4", "d": "7", "l": "3", "g": "20:17", "f": "\u041fH\u041fH", "kw": "1.43", "kl": "1.21"} '
+            away = '{"team": "\u0422\u0445\u0430\u043d\u044c\u0445\u043e\u0430", "place": "8/14", "cnt": "14/26", "w": "5", "d": "4", "l": "5", "g": "17:18", "f": "BB\u041fH", "kw": "1.21", "kl": "1.29"}'
+            home = json.loads(home)
+            away = json.loads(away)
+            stat_str = '{} {}\nИ:{} В:{} Н:{} П:{} Г:{} {}\nkЗ: {} kП: {}\n\n{} {}\nИ:{} В:{} Н:{} П:{} Г:{} {}\nkЗ: {} kП: {}'.format(
+                home['place'], home['team'], home['cnt'], home['w'], home['d'], home['l'], home['g'], home['f'],
+                home.get('kw', ''), home.get('kl', ''),
+                away['place'], away['team'], away['cnt'], away['w'], away['d'], away['l'], away['g'], away['f'],
+                away.get('kw', ''), away.get('kl', '')
+            )
+            country = 'ВЬЕТНАМ'
             chemp = 'Первый дивизион'
             info = """<a href="http://t.myscore.ru/#!/match/{}/match-summary">Подробности</a>""".format('v73jbxUI')
-            message = """<b>{}</b>\n {} {} \n{} - {} dog:{}\n <i> Счет: {} Время:{}</i>\n <i> Кэфы:{} {} {}</i>\n{} """.format(
-                'СТАВКА П1', country, chemp, 'Друтекс-Бытовия', 'Хробры Глогув', '2', '0-1', '30',
-                '1.21', '3.54', '6.52', info)
+            message = """<b>{}</b>\n {} {} \n{} - {} dog:{}\n <i> Счет: {} Время:{}</i>\n <i> Кэфы:{} {} {}</i>\n\n{}\n{} """.format(
+                'ТЕСТ П1', country, chemp, home['team'], away['team'], '2', '0-1', '30',
+                '1.21', '3.54', '6.52', stat_str, info)
 
             updater.bot.send_message(chat_id=cfg.BOT_FATHER,
                              text=message,
@@ -230,5 +256,5 @@ def test_msg():
             break
 
 if __name__ == '__main__':
-    # main()
+   # main()
     test_msg()
