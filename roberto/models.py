@@ -56,6 +56,9 @@ class EventGame(models.Model):
     live_x = models.CharField(default='', null=False, max_length=8)
     live_p2 = models.CharField(default='', null=False, max_length=8)
     dog = models.CharField(default='', null=False, max_length=2)
+    stat_home = models.TextField(default='')
+    stat_away = models.TextField(default='')
+
 
 
     class Meta:

@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from time import sleep
 import logging
+import json
 
 import sys
 
@@ -58,6 +59,25 @@ class Odds(object):
             print('BAD ODDS: {}'.format(self.pre_p1, self.pre_p2))
 
 
+class Stats(object):
+    def __init__(self):
+        self.place = ''
+        self.team = ''
+        self.count_games = ''
+        self.wins = ''
+        self.draw = ''
+        self.lose = ''
+        self.goals = ''
+        self.form = ''
+        self.k_win = ''
+        self.k_lose = ''
+
+    def get_stat_json(self):
+        return json.dumps({'team': self.team, 'place': self.place, 'cnt': self.count_games,
+                           'w': self.wins, 'd': self.draw, 'l': self.lose, 'g': self.goals,
+                           'f': self.form, 'kw': self.k_win, 'kl': self.k_lose
+                           })
+
 
 class Game(object):
     def __init__(self, game=None):
@@ -71,6 +91,8 @@ class Game(object):
         self.part_top = game[7] if game else ''
         self.html_link = game[8] if game else ''
         self.odds = Odds()
+        self.stat_home = ''
+        self.stat_away = ''
 
     def get_score(self):
         cur_score = myscoresettings.MSC_SCORE_REGEX.search(self.score)
@@ -204,11 +226,13 @@ class MyScore(object):
                 if cols:
                     time = cols[1].text.strip()
                     timer = cols[2].text.strip()
-                    team_home = cols[3].text.strip()
+                    # team_home = cols[3].text.strip()
+                    team_home = cols[3].findAll('span', {"class": "padr"})[0].text.strip()
                     rhcard = cols[3].findAll('span', {"class": "rhcard"})
                     rhcard = rhcard[0].get('class')[1][-1:] if rhcard else ''
-                    score = cols[4].text.strip()
-                    team_away = cols[5].text.strip()
+                    score = ''.join(cols[4].text.strip().split())
+                    # team_away = cols[5].text.strip()
+                    team_away = cols[5].findAll('span', {"class": "padl"})[0].text.strip()
                     racard = cols[5].findAll('span', {"class": "racard"})
                     racard = racard[0].get('class')[1][-1:] if racard else ''
                     part_top = cols[6].text.strip()
@@ -251,6 +275,53 @@ class MyScore(object):
         except:
             self.log.exception('Message')
         return odds
+
+    def _parse_stat_table(self, stat_table):
+        stat_table_list = []
+        try:
+            for tmp_table in stat_table:
+                table_id = tmp_table.get('id')
+                if table_id == myscoresettings.MSC_STAT_TYPE_1:
+                    rows = tmp_table.find_all('tr')
+                    for row in rows:
+                        cols = row.find_all('td')
+                        if cols:
+                            total_teams = len(rows) - 1
+                            stat = Stats()
+                            stat.place = cols[0].text.strip().replace('.', '') + '/' + str(total_teams)
+                            stat.team = cols[1].text.strip()
+                            stat.count_games = cols[2].text.strip() + '/' + str((total_teams - 1) * 2)
+                            stat.wins = cols[3].text.strip()
+                            stat.draw = cols[4].text.strip()
+                            stat.lose = cols[5].text.strip()
+                            stat.goals = cols[6].text.strip()
+                            if stat.goals:
+                                try:
+                                    tmp_g = stat.goals.split(':')
+                                    if len(tmp_g) == 2:
+                                        z = int(tmp_g[0])
+                                        p = int(tmp_g[1])
+                                        cnt = int(cols[2].text.strip())
+                                        stat.k_win = str(round(z/cnt, 2))
+                                        stat.k_lose = str(round(p/cnt, 2))
+                                except Exception:
+                                    self.log.exception('Message')
+                            form = cols[8].findAll('a')
+                            form_str = ''
+                            for item in form:
+                                tmp_list = item.attrs.get('class', '')
+                                if len(tmp_list) > 1:
+                                    if tmp_list[1] == 'form-w':
+                                        form_str += 'B'
+                                    if tmp_list[1] == 'form-d':
+                                        form_str += 'H'
+                                    if tmp_list[1] == 'form-l':
+                                        form_str += 'П'
+                            stat.form = form_str
+                            stat_table_list.append(stat.get_stat_json())
+        except:
+            self.log.exception('Message')
+        return stat_table_list
 
     def _update_game(self, game):
         """
@@ -337,10 +408,39 @@ class MyScore(object):
                 myscore.log.exception("message")
         return current_odds
 
+    def _get_current_game_table(self, current_game):
+        current_link = '{}/{}/{}/{}'.format(myscoresettings.MSC_BASE_LINK, myscoresettings.MSC_MATCH_LINK,
+                                         current_game.html_link, myscoresettings.MSC_MATCH_TABLE)
+        current_stat = []
+        with WebParser(current_link, True, myscoresettings.MSC_MATCH_SUMMARY_CLASS) as cu:
+            msc_local = MyScore(cu.get_source_html())
+            try:
+                stat_table = msc_local.get_table(myscoresettings.MSC_STAT_TABLE)
+                if stat_table:
+                    current_stat = self._parse_stat_table(stat_table)
+            except Exception:
+                myscore.log.exception("message")
+        return current_stat
+
     @staticmethod
     def _update_odds(current_game, odds):
         update_sql = sql.UPDATE_GAME_ODDS.format(tbl=myscoresettings.MSC_EVENT_TABLE, link=current_game.html_link)
         params = (odds.get_odds())
+        run_sql(update_sql, params=params)
+
+    @staticmethod
+    def _update_stat(current_game, stat_list):
+        update_sql = sql.UPDATE_GAME_STAT.format(tbl=myscoresettings.MSC_EVENT_TABLE, link=current_game.html_link)
+        home_stat = ''
+        away_stat = ''
+        for item in stat_list:
+            if item:
+                tmp = json.loads(item)
+                if current_game.team_home in tmp.get('team', ''):
+                    home_stat = item
+                if current_game.team_away in tmp.get('team', ''):
+                    away_stat = item
+        params = (home_stat, away_stat)
         run_sql(update_sql, params=params)
 
     @staticmethod
@@ -358,6 +458,85 @@ class MyScore(object):
             odds.dog = result[6]
         return odds
 
+    @staticmethod
+    def _get_event_stat(html_link):
+        stat = []
+        select_sql = sql.SELECT_STAT_BY_LINK.format(tbl=myscoresettings.MSC_EVENT_TABLE, link=html_link)
+        result = run_sql(select_sql)
+        if result:
+            stat.append(result[0])
+            stat.append(result[1])
+        else:
+            stat = ['', '']
+        return stat
+
+    def calc_stat(self, html_link, dog):
+        country_str = ''
+        lg_str = ''
+        try:
+            sql_lg_id = sql.SELECT_LG_ID_AND_COUNTRY.format(link=html_link)
+            res_lg_id = run_sql(sql_lg_id)
+            if res_lg_id:
+                lg = res_lg_id[0]
+                country = res_lg_id[1]
+            sql_0_1 = sql.SELECT_0_1_BY_COUNTRY.format(country=country, dog=dog)
+            res_0_1 = run_sql(sql_0_1)
+            res_0_1 = res_0_1[0] if res_0_1 else '0'
+            sql_0_2 = sql.SELECT_0_2_BY_COUNTRY.format(country=country, dog=dog)
+            res_0_2 = run_sql(sql_0_2)
+            res_0_2 = res_0_2[0] if res_0_2 else '0'
+            sql_1_1 = sql.SELECT_1_1_BY_COUNTRY.format(country=country, dog=dog)
+            res_1_1 = run_sql(sql_1_1)
+            res_1_1 = res_1_1[0] if res_1_1 else '0'
+            sql_0_1_s = sql.SELECT_0_1_STAY_BY_COUNTRY.format(country=country, dog=dog)
+            res_0_1_s = run_sql(sql_0_1_s)
+            res_0_1_s = res_0_1_s[0] if res_0_1_s else '0'
+            if res_0_1 != 0:
+                kw = str(round(round(int(res_1_1) / int(res_0_1), 2) * 100)) + '%'
+            else:
+                kw = '-'
+            if res_0_1 != 0:
+                kp = str(round(round(int(res_0_2) / int(res_0_1), 2) * 100)) + '%'
+            else:
+                kp = '-'
+            if res_0_1 != 0:
+                ks = str(round(round(int(res_0_1_s) / int(res_0_1), 2) * 100)) + '%'
+            else:
+                ks = '-'
+            country_str = 'Всего:{} В:{}({}) П:{}({}) П0:{}({})'.format(res_0_1, res_1_1, kw, res_0_2, kp, res_0_1_s, ks)
+
+            sql_0_1 = sql.SELECT_0_1_BY_LG.format(lg=lg, dog=dog)
+            res_0_1 = run_sql(sql_0_1)
+            res_0_1 = res_0_1[0] if res_0_1 else '0'
+            sql_0_2 = sql.SELECT_0_2_BY_LG.format(lg=lg, dog=dog)
+            res_0_2 = run_sql(sql_0_2)
+            res_0_2 = res_0_2[0] if res_0_2 else '0'
+            sql_1_1 = sql.SELECT_1_1_BY_LG.format(lg=lg, dog=dog)
+            res_1_1 = run_sql(sql_1_1)
+            res_1_1 = res_1_1[0] if res_1_1 else '0'
+            sql_0_1_s = sql.SELECT_0_1_STAY_BY_LG.format(lg=lg, dog=dog)
+            res_0_1_s = run_sql(sql_0_1_s)
+            res_0_1_s = res_0_1_s[0] if res_0_1_s else '0'
+            if res_0_1 != 0:
+                kw = str(round(round(int(res_1_1) / int(res_0_1), 2) * 100)) + '%'
+            else:
+                kw = '-'
+            if res_0_1 != 0:
+                kp = str(round(round(int(res_0_2) / int(res_0_1), 2) * 100)) + '%'
+            else:
+                kp = '-'
+            if res_0_1 != 0:
+                ks = str(round(round(int(res_0_1_s) / int(res_0_1), 2) * 100)) + '%'
+            else:
+                ks = '-'
+            lg_str = 'Лига: {} В:{}({}) П:{}({}) П0:{}({})'.format(res_0_1, res_1_1, kw, res_0_2, kp, res_0_1_s, ks)
+        except Exception:
+            self.log.exception('message')
+        return country_str + '\n' + lg_str
+
+
+
+
     def send_bot_message(self, current_game, exist_game, league_header):
         send_message = False
         predict_message = ''
@@ -365,6 +544,7 @@ class MyScore(object):
         chemp = league_header.caption
         last_score = exist_game.get_score()
         curr_score = current_game.get_score()
+        total_str = ''
         if exist_game.odds.dog == '1':
             if int(curr_score[0]) > int(last_score[0]) and int(curr_score[1]) == 0 and int(last_score[0]) == 0:
                 send_message = True
@@ -388,6 +568,7 @@ class MyScore(object):
 
 
         if exist_game.odds.dog == '2':
+            total_str = self.calc_stat(league_header.html_link, exist_game.odds.dog)
             if int(curr_score[1]) > int(last_score[1]) and int(curr_score[0]) == 0 and int(last_score[1]) == 0:
                 send_message = True
                 predict_message = 'Ставка П1'
@@ -408,25 +589,41 @@ class MyScore(object):
                 send_message = True
                 predict_message = 'ОТЫГРАЛИСЬ!'
 
-
         info = """<a href="http://t.myscore.ru/#!/match/{}/match-summary">Подробности</a>""".format(exist_game.html_link)
-        message = "<b>{}</b>\n {} {} \n{} - {} dog:{}\n <i> Счет: {} Время:{}</i>\n <i> Кэфы:{} {} {}</i>\n{} ".format(
+        stat_str = ''
+        if exist_game.stat_home and exist_game.stat_away:
+            home = json.loads(exist_game.stat_home)
+            away = json.loads(exist_game.stat_away)
+            stat_str = '{} {}\nИ:{} В:{} Н:{} П:{} Г:{} {}\nkЗ: {} kП: {}\n\n{} {}\nИ:{} В:{} Н:{} П:{} Г:{} {}\nkЗ: {} kП: {}'.format(
+                home['place'], home['team'], home['cnt'], home['w'], home['d'], home['l'], home['g'], home['f'],
+                home.get('kw', ''), home.get('kl', ''),
+                away['place'], away['team'], away['cnt'], away['w'], away['d'], away['l'], away['g'], away['f'],
+                away.get('kw', ''), away.get('kl', '')
+            )
+
+
+
+        message = "<b>{}</b>\n {} {} \n{} - {} dog:{}\n <i> Счет: {} Время:{}</i>\n <i> Кэфы:{} {} {}</i>\n\n{}\n\n{}\n\n{} ".format(
             predict_message, country, chemp, current_game.team_home, current_game.team_away,
             exist_game.odds.dog, current_game.score, current_game.timer,
-            exist_game.odds.pre_p1, exist_game.odds.pre_x, exist_game.odds.pre_p2, info)
+            exist_game.odds.pre_p1, exist_game.odds.pre_x, exist_game.odds.pre_p2, stat_str, total_str, info)
 
         self.log.info(message)
         if send_message:
-            for i in range(7):
+            for i in range(11):
                 try:
                     proxy_list = [
                         'https://195.201.43.199:3128',
-                        'https://195.208.172.70:8080',
-                        'https://145.249.106.107:8118',
-                        'https://51.255.168.125:9999',
-                        'https://144.76.62.29:3128',
+                        'https://66.70.255.195:3128',
+                        'https://198.50.142.59:8080',
+                        'https://158.69.206.181:8888',
+                        'https://144.76.62.29:3128', #jr
                         'https://94.242.58.108:10010',
-                        'https://178.238.228.187:9090',
+                        'https://66.70.147.196:3128',
+                        'https://66.70.147.197:3128',
+                        'https://54.39.46.86:3128',
+                        'https://52.91.209.114:8888',
+                        'https://52.91.209.147:8888',
                     ]
                     REQUEST_KWARGS = {
                          'proxy_url': proxy_list[i],
@@ -452,27 +649,37 @@ class MyScore(object):
 
         self._insert_league(league.header)
         for game in league.game:
-            if len(league.game[game].score) > 4:
-                self.log.info("{} \t {} - {} \t {}".format(league.game[game].timer, league.game[game].team_home,
-                                                           league.game[game].team_away, league.game[game].score))
+            # if len(league.game[game].score) > 4:
+            #     pass
+            #     self.log.info("{} \t {} - {} \t {}".format(league.game[game].timer, league.game[game].team_home,
+            #                                                league.game[game].team_away, league.game[game].score))
 
             exist_game = self._get_current_game(league.game[game])
             if exist_game:
                 exist_game = Game(exist_game)
                 event_odds = self._get_event_odds(exist_game.html_link)
+                event_stat = self._get_event_stat(exist_game.html_link)
                 exist_game.odds = event_odds
+                exist_game.stat_home = event_stat[0]
+                exist_game.stat_away = event_stat[1]
                 current_game, event_type = self._check_current_diff(exist_game, league.game[game])
+                # test
+                # current_stat = self._get_current_game_table(current_game)
                 if event_type == EventType.new_game:
                     if not exist_game.odds.pre_p1 or not exist_game.odds.live_p1:
                         current_odds = self._get_current_game_odds(current_game)
-                        self.log.info("{}\t\t{}".format((current_odds.get_pre_odds()), (current_odds.get_live_odds())))
+                        # test
+                        current_stat = self._get_current_game_table(current_game)
+                        self._update_stat(current_game, current_stat)
                         self._update_odds(current_game, current_odds)
-                if event_type == EventType.goal or DEBUG:
+                        self.log.info("{}\t\t{}".format((current_odds.get_pre_odds()), (current_odds.get_live_odds())))
+                if event_type == EventType.goal:
                     self._update_odds(current_game, exist_game.odds)
-                    if event_odds.dog or DEBUG:
+                    self._update_stat(current_game, [exist_game.stat_home, exist_game.stat_away])
+                    if event_odds.dog:
                         current_score = current_game.get_score()
-                        if current_score[0] and current_score[1] or DEBUG:
-                            if 0 < int(current_score[0]) + int(current_score[1]) <= 3 or DEBUG:
+                        if current_score[0] and current_score[1]:
+                            if 0 < int(current_score[0]) + int(current_score[1]) <= 4:
                                 self.send_bot_message(current_game, exist_game, league.header)
 
             else:
